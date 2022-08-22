@@ -5,6 +5,8 @@ from .._models import Genshin
 from services.log import logger
 from nonebot.params import CommandArg, Command
 from typing import Tuple
+from utils.http_utils import AsyncHttpx
+import json
 
 
 __zx_plugin_name__ = "原神绑定"
@@ -39,6 +41,10 @@ bind = on_command(
 
 unbind = on_command("原神解绑", priority=5, block=True)
 
+web_Api = "https://api-takumi.mihoyo.com"
+bbs_Cookie_url = "https://webapi.account.mihoyo.com/Api/cookie_accountinfo_by_loginticket?login_ticket={}"
+bbs_Cookie_url2 = web_Api + "/auth/api/getMultiTokenByLoginTicket?login_ticket={}&token_types=3&uid={}"
+
 
 @bind.handle()
 async def _(event: MessageEvent, cmd: Tuple[str, ...] = Command(), arg: Message = CommandArg()):
@@ -64,9 +70,13 @@ async def _(event: MessageEvent, cmd: Tuple[str, ...] = Command(), arg: Message 
         _x = f"已成功为uid：{uid} 设置米游社id：{msg}"
     else:
         if not msg:
-            await bind.finish(
-                "私聊发送！！\n打开 https://bbs.mihoyo.com/ys/\n登录后按F12点击控制台输入document.cookie复制输出的内容即可"
-            )
+            await bind.finish("""私聊发送！！
+            1.以无痕模式打开浏览器（Edge请新建InPrivate窗口）
+            2.打开http://bbs.mihoyo.com/ys/并登陆
+            3.登陆后打开http://user.mihoyo.com/进行登陆
+            4.按下F12，打开控制台，输入以下命令：
+            var cookie=document.cookie;var ask=confirm('Cookie:'+cookie+'\\n\\nDo you want to copy the cookie to the clipboard?');if(ask==true){copy(cookie);msg=cookie}else{msg='Cancel'}
+            5.私聊发送：原神绑定cookie 刚刚复制的cookie""")
         if isinstance(event, GroupMessageEvent):
             await bind.finish("请立即撤回你的消息并私聊发送！")
         uid = await Genshin.get_user_uid(event.user_id)
@@ -77,6 +87,33 @@ async def _(event: MessageEvent, cmd: Tuple[str, ...] = Command(), arg: Message 
         if msg.endswith('"') or msg.endswith("'"):
             msg = msg[:-1]
         await Genshin.set_cookie(uid, msg)
+        cookie = msg
+        # 用: 代替=, ,代替;
+        cookie = '{"' + cookie.replace('=', '": "').replace("; ", '","') + '"}'
+        print(cookie)
+        cookie_json = json.loads(cookie)
+        print(cookie_json)
+        login_ticket = cookie_json['login_ticket']
+        # try:
+        res = await AsyncHttpx.get(url=bbs_Cookie_url.format(login_ticket))
+        res.encoding = "utf-8"
+        data = json.loads(res.text)
+        print(data)
+        if "成功" in data["data"]["msg"]:
+            stuid = str(data["data"]["cookie_info"]["account_id"])
+            res = await AsyncHttpx.get(url=bbs_Cookie_url2.format(
+                login_ticket, stuid))
+            res.encoding = "utf-8"
+            data = json.loads(res.text)
+            stoken = data["data"]["list"][0]["token"]
+            # await Genshin.set_cookie(uid, cookie)
+            await Genshin.set_stoken(uid, stoken)
+            await Genshin.set_stuid(uid, stuid)
+            await Genshin.set_login_ticket(uid, login_ticket)
+        # except Exception as e:
+        #     await bind.finish("获取登陆信息失败，请检查cookie是否正确或更新cookie")
+        elif data["data"]["msg"] == "登录信息已失效，请重新登录":
+            await bind.finish("登录信息失效，请重新获取最新cookie进行绑定")
         _x = f"已成功为uid：{uid} 设置cookie"
     if isinstance(event, GroupMessageEvent):
         await Genshin.set_bind_group(uid, event.group_id)

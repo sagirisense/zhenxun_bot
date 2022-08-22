@@ -36,7 +36,6 @@ __plugin_configs__ = {
     },
 }
 
-
 coser = on_regex(r"^(\d)连?(cos|COS|coser|括丝|COSER)$", priority=5, block=True)
 
 # 纯cos，较慢:https://picture.yinux.workers.dev
@@ -45,7 +44,7 @@ url = "https://picture.yinux.workers.dev/"
 
 
 @coser.handle()
-async def _(bot: Bot, event: MessageEvent, reg_group: Tuple[Any, ...] = RegexGroup()):
+async def _(event: MessageEvent, reg_group: Tuple[Any, ...] = RegexGroup()):
     num = reg_group[0] or 1
     for _ in range(int(num)):
         try:
