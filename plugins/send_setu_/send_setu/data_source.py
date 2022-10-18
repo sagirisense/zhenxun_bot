@@ -12,7 +12,11 @@ from .._model import Setu
 import asyncio
 import os
 import random
+
 from plugins.sign_in import utils
+
+import re
+
 
 try:
     import ujson as json
@@ -23,6 +27,7 @@ url = "https://api.lolicon.app/setu/v2"
 path = "_setu"
 r18_path = "_r18"
 temp = "temp"
+host_pattern = re.compile(r"https?://([^/]+)")
 
 
 # 获取url
@@ -90,7 +95,9 @@ async def search_online_setu(
     """
     ws_url = Config.get_config("pixiv", "PIXIV_NGINX_URL")
     if ws_url:
-        url_ = url_.replace("i.pximg.net", ws_url).replace("i.pixiv.cat", ws_url)
+        host_match = re.match(host_pattern, url_)
+        host = host_match.group(1)
+        url_ = url_.replace(host, ws_url)
     index = random.randint(1, 100000) if id_ is None else id_
     path_ = IMAGE_PATH / path_ if path_ else TEMP_PATH
     file_name = f"{index}_temp_setu.jpg" if path_ == TEMP_PATH else f"{index}.jpg"
