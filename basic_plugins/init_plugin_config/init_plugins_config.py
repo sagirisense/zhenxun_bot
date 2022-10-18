@@ -27,6 +27,8 @@ def init_plugins_config(data_path):
     # 优先使用 metadata 数据
     for matcher in _matchers:
         _plugin = matcher.plugin
+        if not _plugin:
+            continue
         metadata = _plugin.metadata
         try:
             _module = _plugin.module
@@ -108,16 +110,16 @@ def init_plugins_config(data_path):
                 _data, wf, indent=2, Dumper=yaml.RoundTripDumper, allow_unicode=True
             )
     user_config_file = Path() / "configs" / "config.yaml"
-    if not user_config_file.exists():
-        _replace_config()
-    else:
-        logger.info('五分钟后将进行配置数据替换，请注意...')
-        scheduler.add_job(
-            _replace_config,
-            "date",
-            run_date=datetime.now() + timedelta(minutes=5),
-            id=f"_replace_config"
-        )
+    # if not user_config_file.exists():
+    _replace_config()
+    # else:
+    #     logger.info('五分钟后将进行配置数据替换，请注意...')
+    #     scheduler.add_job(
+    #         _replace_config,
+    #         "date",
+    #         run_date=datetime.now() + timedelta(minutes=5),
+    #         id=f"_replace_config"
+    #     )
 
 
 def _replace_config():

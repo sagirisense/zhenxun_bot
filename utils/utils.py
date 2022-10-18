@@ -18,8 +18,17 @@ try:
 except ModuleNotFoundError:
     import json
 
+require("nonebot_plugin_apscheduler")
+from nonebot_plugin_apscheduler import scheduler
 
-scheduler = require("nonebot_plugin_apscheduler").scheduler
+scheduler = scheduler
+
+# 全局字典
+GDict = {
+    "run_sql": [],                  # 需要启动前运行的sql语句
+    "_shop_before_handle": {},      # 商品使用前函数
+    "_shop_after_handle": {},      # 商品使用后函数
+}
 
 
 class CountLimiter:
@@ -110,8 +119,8 @@ class BanCheckLimiter:
             self.mint[key] = 0
             return False
         if (
-            self.mint[key] >= self.default_count
-            and time.time() - self.mtime[key] < self.default_check_time
+                self.mint[key] >= self.default_count
+                and time.time() - self.mtime[key] < self.default_check_time
         ):
             self.mtime[key] = time.time()
             self.mint[key] = 0
@@ -236,6 +245,25 @@ def get_message_img(data: Union[str, Message]) -> List[str]:
         for seg in data["image"]:
             img_list.append(seg.data["url"])
     return img_list
+
+
+def get_message_face(data: Union[str, Message]) -> List[str]:
+    """
+    说明:
+        获取消息中所有的 face Id
+    参数:
+        :param data: event.json()
+    """
+    face_list = []
+    if isinstance(data, str):
+        data = json.loads(data)
+        for msg in data["message"]:
+            if msg["type"] == "face":
+                face_list.append(msg["data"]["id"])
+    else:
+        for seg in data["face"]:
+            face_list.append(seg.data["id"])
+    return face_list
 
 
 def get_message_img_file(data: Union[str, Message]) -> List[str]:
@@ -383,7 +411,7 @@ def cn2py(word: str) -> str:
 
 
 def change_pixiv_image_links(
-    url: str, size: Optional[str] = None, nginx_url: Optional[str] = None
+        url: str, size: Optional[str] = None, nginx_url: Optional[str] = None
 ):
     """
     说明:
@@ -404,8 +432,8 @@ def change_pixiv_image_links(
     if nginx_url:
         url = (
             url.replace("i.pximg.net", nginx_url)
-            .replace("i.pixiv.cat", nginx_url)
-            .replace("_webp", "")
+                .replace("i.pixiv.cat", nginx_url)
+                .replace("_webp", "")
         )
     else:
         logger.info("未启用pixiv代理")

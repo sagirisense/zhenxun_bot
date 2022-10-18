@@ -7,11 +7,11 @@ from asyncio.exceptions import TimeoutError
 from utils.utils import get_bot
 from .model import BilibiliSub
 from bilireq.live import get_room_info_by_id
-from .utils import get_meta
+from .utils import get_meta, get_user_card
 from utils.message_builder import image
-from bilireq.user import get_user_info
+from bilireq.user import get_videos
+# from .utils import get_videos
 from bilireq import dynamic
-from .utils import get_videos
 from typing import Optional, Tuple
 from configs.path_config import IMAGE_PATH
 from datetime import datetime
@@ -83,7 +83,7 @@ async def add_up_sub(uid: int, sub_user: str) -> str:
         async with db.transaction():
             try:
                 """bilibili_api.user库中User类的get_user_info改为bilireq.user库的get_user_info方法"""
-                user_info = await get_user_info(uid)
+                user_info = await get_user_card(uid)
             except ResponseCodeError:
                 return f"未找到UpId：{uid} 的信息，请检查Id是否正确"
             uname = user_info["name"]
@@ -207,8 +207,10 @@ async def get_sub_status(id_: int, sub_type: str) -> Optional[str]:
             return await _get_up_status(id_)
         elif sub_type == "season":
             return await _get_season_status(id_)
-    except ResponseCodeError:
-        return f"Id：{id_} 获取信息失败...请检查订阅Id是否存在或稍后再试..."
+    except ResponseCodeError as msg:
+        logger.info(f"Id：{id_} 获取信息失败...{msg}")
+        return None
+        # return f"Id：{id_} 获取信息失败...请检查订阅Id是否存在或稍后再试..."
     # except Exception as e:
     #     logger.error(f"获取订阅状态发生预料之外的错误 id_：{id_} {type(e)}：{e}")
     #     return "发生了预料之外的错误..请稍后再试或联系管理员....."
@@ -247,7 +249,7 @@ async def _get_up_status(id_: int) -> Optional[str]:
     """
     _user = await BilibiliSub.get_sub(id_)
     """bilibili_api.user库中User类的get_user_info改为bilireq.user库的get_user_info方法"""
-    user_info = await get_user_info(_user.uid)
+    user_info = await get_user_card(_user.uid)
     uname = user_info["name"]
     """bilibili_api.user库中User类的get_videos改为bilireq.user库的get_videos方法"""
     video_info = await get_videos(_user.uid)
@@ -347,16 +349,8 @@ async def get_user_dynamic(
                 await page.set_viewport_size(
                     {"width": 2560, "height": 1080, "timeout": 10000 * 20}
                 )
-                await page.wait_for_selector(".panel-area")
-                await page.evaluate(
-                    """
-                    xs = document.getElementById('internationalHeader');
-                    xs.remove();
-                    xs = document.getElementsByClassName('panel-area')
-                    xs[0].remove();
-                """
-                )
-                card = page.locator(".detail-card")
+                await page.wait_for_selector(".bili-dyn-item__main")
+                card = page.locator(".bili-dyn-item__main")
                 await card.wait_for()
                 await card.screenshot(
                     path=dynamic_path / f"{local_user.sub_id}_{dynamic_upload_time}.jpg",
