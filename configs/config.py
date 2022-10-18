@@ -13,12 +13,12 @@ NICKNAME: str = "格蕾修"
 # 如果填写了bind就不需要再填写后面的字段了#）
 # 示例："bind": "postgresql://user:password@127.0.0.1:5432/database"
 bind: str = ""  # 数据库连接链接
-sql_name: str = "postgresql"
-user: str = "postgres"  # 数据用户名
-password: str = "cyc970824"  # 数据库密码
-address: str = "127.0.0.1"  # 数据库地址
-port: str = "5432"  # 数据库端口
-database: str = "griseo"  # 数据库名称
+sql_name: str = ""
+user: str = ""  # 数据用户名
+password: str = ""  # 数据库密码
+address: str = ""  # 数据库地址
+port: str = ""  # 数据库端口
+database: str = ""  # 数据库名称
 
 # 代理，例如 "http://127.0.0.1:7890"
 # 如果是WLS 可以 f"http://{hostip}:7890" 使用寄主机的代理
