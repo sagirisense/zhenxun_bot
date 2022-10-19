@@ -1,6 +1,5 @@
 from configs.path_config import IMAGE_PATH
 
-
 SIGN_RESOURCE_PATH = IMAGE_PATH / 'sign' / 'sign_res'
 SIGN_TODAY_CARD_PATH = IMAGE_PATH / 'sign' / 'today_card'
 SIGN_BORDER_PATH = SIGN_RESOURCE_PATH / 'border'
@@ -8,7 +7,6 @@ SIGN_BACKGROUND_PATH = SIGN_RESOURCE_PATH / 'background'
 
 SIGN_BORDER_PATH.mkdir(exist_ok=True, parents=True)
 SIGN_BACKGROUND_PATH.mkdir(exist_ok=True, parents=True)
-
 
 lik2relation = {
     '0': '路人',
@@ -19,7 +17,8 @@ lik2relation = {
     '5': '信赖',
     '6': '相知',
     '7': '厚谊',
-    '8': '亲密'
+    '8': '亲密',
+    '9': '相濡以沫'
 }
 
 level2attitude = {
@@ -31,7 +30,8 @@ level2attitude = {
     '5': '好朋友',
     '6': '可以分享小秘密',
     '7': '喜欢',
-    '8': '恋人'
+    '8': '恋人',
+    '9': '生死之交'
 }
 
 weekdays = {
@@ -45,7 +45,7 @@ weekdays = {
 }
 
 lik2level = {
-    512: '9',
+    2048: '9',
     256: '8',
     128: '7',
     64: '6',
@@ -56,9 +56,3 @@ lik2level = {
     2: '1',
     0: '0'
 }
-
-
-
-
-
-
