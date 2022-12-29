@@ -172,8 +172,8 @@ async def generate_statistics_img(
     data: dict, arg: str, name: str, plugin: str, day_index: int
 ):
     try:
-        plugin = plugins2settings_manager.get_plugin_data(plugin)['cmd'][0]
-    except (KeyError, IndexError):
+        plugin = plugins2settings_manager.get_plugin_data(plugin).cmd[0]
+    except (KeyError, IndexError, AttributeError):
         pass
     bar_graph = None
     if arg == "day_statistics":

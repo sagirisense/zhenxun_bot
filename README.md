@@ -39,8 +39,10 @@
 请对格蕾修说: '格蕾修帮助' or '管理员帮助' or '超级用户帮助' or '格蕾修帮助 指令'
 
 ## 普通帮助图片
+![x](https://raw.githubusercontent.com/HibiKier/zhenxun_bot/main/docs_image/help.png)
 
-![x](https://github.com/HibiKier/zhenxun_bot/blob/0.0.8.2/docs_image/3238573864-836268675-E2FFBB2AC143EAF4DDDF150438508721.png)
+## HTML版帮助图片
+![x](https://raw.githubusercontent.com/HibiKier/zhenxun_bot/main/docs_image/html_help.png)
 
 ## Web UI
 
@@ -269,9 +271,11 @@ PS: **ARM平台** 请使用全量版 同时 **如果你的机器 RAM < 1G 可能
 <img width="365px" height="450px" src="https://user-images.githubusercontent.com/45528451/175059389-cfeb8174-fa07-4939-80ab-a039087a50f6.png">
 
 ### 感谢名单
+(可以告诉我你的 __github__ 地址，我偷偷换掉0v|)  
 
-(可以告诉我你的 **github** 地址，我偷偷换掉0v|)  
-[Yui](https://afdian.net/u/870dc10a3cd311ed828852540025c377)  
+[阿奎](https://afdian.net/u/da41f72845d511ed930d52540025c377)  
+[醉梦尘逸](https://afdian.net/u/bc11d2683cd011ed99b552540025c377)  
+[Abc](https://afdian.net/u/870dc10a3cd311ed828852540025c377)  
 [本喵无敌哒](https://afdian.net/u/dffaa9005bc911ebb69b52540025c377)  
 [椎名冬羽](https://afdian.net/u/ca1ebd64395e11ed81b452540025c377)  
 [kaito](https://afdian.net/u/a055e20a498811eab1f052540025c377)  
@@ -307,6 +311,126 @@ PS: **ARM平台** 请使用全量版 同时 **如果你的机器 RAM < 1G 可能
 </details>
 
 ## 更新
+
+### 2022/12/27 \[v0.1.6.6]
+
+* 添加权限检查依赖注入
+
+### 2022/12/26
+
+* 优化`gamedraw`插件
+* 提供全局被动控制
+* 群被动状态改为图片
+* 修复epic获取到的简介不是中文的bug [@pull/1221](https://github.com/HibiKier/zhenxun_bot/pull/1221)
+
+## 2022/12/24
+
+* 修复群管理员权限检测会阻挡超级用户权限
+
+### 2022/12/23
+
+* 优化`管理员帮助`，`超级用户帮助`图片
+* 重新移植`gamedraw`
+* 修复pil帮助私聊时无法生成
+
+### 2022/12/17
+
+* 修复查看插件仓库当已安装插件版本不一致时出错
+
+### 2022/12/15
+
+* 修复自定义群欢迎消息无法使用
+
+### 2022/12/13
+
+* 修复.unban
+
+### 2022/12/12
+
+* 修改HTML帮助禁用提示文本错误
+* 修复HTML帮助私聊无法生成
+
+### 2022/12/11
+
+* 词条问题支持真寻的昵称开头与at真寻开头并优化回复
+* 帮助新增HTML生成（新布局），添加配置`TYPE`切换
+* 更正私聊时功能管理回复错误
+* 修复加入新群聊时初始化功能开关错误
+* 添加单例注解
+* 添加统计表
+
+### 2022/12/10
+
+* 重写帮助，删除 `详细帮助` 命令
+
+### 2022/12/4
+
+* 优化管理代码
+
+### 2022/11/28
+
+* 修复web_ui群组无法获取
+* 修复web_ui修改插件数据时cmd格式错误
+
+### 2022/11/28
+
+* :bug: Fix a bug in open_cases to get vanilla knives' prices [@pull/1188](https://github.com/HibiKier/zhenxun_bot/pull/1188)
+
+### 2022/11/24
+
+* 修复管理员插件加载路径错误
+
+### 2022/11/23
+
+* 修复webui插件无法获取修改
+
+### 2022/11/22
+
+* fix switch_rule [@pull/1185](https://github.com/HibiKier/zhenxun_bot/pull/1185)
+
+### 2022/11/21  \[v0.1.6.5]
+
+* 优化manager, hook代码
+* 修复pid搜图 [@pull/1180](https://github.com/HibiKier/zhenxun_bot/pull/1180)
+
+### 2022/11/19
+
+* 修改优化帮助图片生成逻辑
+
+### 2022/11/18
+
+* poetry添加适配器依赖，更新支持py3.10 [@pull/1176](https://github.com/HibiKier/zhenxun_bot/pull/1176)
+
+### 2022/11/13
+
+* 更新天气api
+* 使用道具可以附带额外信息供函数使用
+* 限制帮助图片最小宽度
+
+### 2022/11/12
+
+* 更新yiqing插件数据显示 [@pull/1168](https://github.com/HibiKier/zhenxun_bot/pull/1168)
+
+### 2022/11/11
+
+* fix: B站直播订阅的相关问题 [@pull/1158](https://github.com/HibiKier/zhenxun_bot/pull/1158)
+
+### 2022/10/30
+
+* 商店简介动态行数，根据文字长度自动换行
+
+### 2022/10/28
+
+* 为exec指令进行了SELECT语句适配,添加了查看所有表指令 [@pull/1155](https://github.com/HibiKier/zhenxun_bot/pull/1155)
+* 修复复读 [@pull/1154](https://github.com/HibiKier/zhenxun_bot/pull/1154)
+
+### 2022/10/23
+
+* 复读修改回图片下载
+
+### 2022/10/22
+
+* 更新依赖注入
 
 ### 2022/10/16 \[v0.1.6.4]
 

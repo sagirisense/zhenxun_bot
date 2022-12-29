@@ -54,7 +54,7 @@ usage:
         私聊添加词条
         （私聊情况下）删除词条: 删除私聊词条
         （私聊情况下）删除全局词条
-        （私聊情况下）修改词条: 修改词条私聊词条
+        （私聊情况下）修改词条: 修改私聊词条
         （私聊情况下）修改全局词条
         用法与普通用法相同
 """.strip()
@@ -96,6 +96,8 @@ async def _(
     if isinstance(event, PrivateMessageEvent) and str(event.user_id) not in bot.config.superusers:
         await add_word.finish('权限不足捏')
     word_scope, word_type, problem, answer = reg_group
+    if not word_scope and isinstance(event, PrivateMessageEvent):
+        word_scope = '私聊'
     if (
         word_scope
         and word_scope in ["全局", "私聊"]
@@ -139,6 +141,7 @@ async def _(
 
 @add_word.got("problem_image", prompt="请发送该回答设置的问题图片")
 async def _(
+    bot: Bot,
     event: MessageEvent,
     word_scope: Optional[str] = ArgStr("word_scope"),
     word_type: Optional[str] = ArgStr("word_type"),
@@ -152,13 +155,19 @@ async def _(
                 re.compile(problem)
             except re.error:
                 await add_word.finish(f"添加词条失败，正则表达式 {problem} 非法！")
+        # if str(event.user_id) in bot.config.superusers and isinstance(event, PrivateMessageEvent):
+        #     word_scope = "私聊"
+        nickname = None
+        if problem and bot.config.nickname:
+            nickname = [nk for nk in bot.config.nickname if problem.startswith(nk)]
         await WordBank.add_problem_answer(
             event.user_id,
-            event.group_id if isinstance(event, GroupMessageEvent) and (not word_scope or word_scope == '1') else 0,
+            event.group_id if isinstance(event, GroupMessageEvent) and (not word_scope or word_scope == '私聊') else 0,
             scope2int[word_scope] if word_scope else 1,
             type2int[word_type] if word_type else 0,
             problem or problem_image,
             answer,
+            nickname[0] if nickname else None
         )
     except Exception as e:
         if isinstance(e, FinishedException):
