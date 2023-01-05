@@ -40,7 +40,7 @@ coser = on_regex(r"^(\d)?连?(cos|COS|coser|括丝|COSER)$", priority=5, block=T
 
 # 纯cos，较慢:https://picture.yinux.workers.dev
 # 比较杂，有福利姬，较快:https://api.jrsgslb.cn/cos/url.php?return=img
-url = "https://api.jrsgslb.cn/cos/url.php?return=img"
+url = "https://api.kgbots.com/api/cos/api.php"
 
 
 @coser.handle()
