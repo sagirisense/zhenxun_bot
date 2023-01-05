@@ -15,6 +15,8 @@ FONT_PATH = Path() / "resources" / "font"
 DATA_PATH = Path() / "data"
 # 临时数据路径
 TEMP_PATH = Path() / "resources" / "temp"
+# 网页模板路径
+TEMPLATE_PATH = Path() / "resources" / "template"
 
 
 def load_path():
@@ -37,7 +39,7 @@ def load_path():
     FONT_PATH.mkdir(parents=True, exist_ok=True)
     DATA_PATH.mkdir(parents=True, exist_ok=True)
     TEMP_PATH.mkdir(parents=True, exist_ok=True)
-
+    TEMPLATE_PATH.mkdir(parents=True, exist_ok=True)
 
 load_path()
 

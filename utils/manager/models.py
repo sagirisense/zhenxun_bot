@@ -33,6 +33,7 @@ class BaseData(BaseModel):
     """
 
     white_group: List[int] = []  # 白名单
+    close_task: List[str] = []   # 全局关闭的被动任务
     group_manager: Dict[str, BaseGroup] = {}  # 群组管理
     task: Dict[str, str] = {}  # 被动任务 【英文：中文】
 
@@ -113,17 +114,17 @@ class PluginData(BaseModel):
     name: str
     plugin_type: PluginType  # 插件内部类型，根据name [Hidden] [Admin] [SUPERUSER]
     usage: Optional[str]
+    superuser_usage: Optional[str]
     des: Optional[str]
     task: Optional[Dict[str, str]]
     menu_type: Tuple[Union[str, int], ...] = ("normal",)  # 菜单类型
-    version: Optional[Union[str, int]]
-    author: Optional[str]
     plugin_setting: Optional[PluginSetting]
     plugin_cd: Optional[PluginCd]
     plugin_block: Optional[PluginBlock]
     plugin_count: Optional[PluginCount]
     plugin_resources: Optional[Dict[str, Union[str, Path]]]
     plugin_configs: Optional[Dict[str, Dict[str, Any]]]
+    plugin_status: Plugin
 
     class Config:
         arbitrary_types_allowed = True
