@@ -54,7 +54,7 @@ __plugin_cd_limit__ = {
     "rst": "你冲太快了，一会再试吧",  # 回复的话，为None时不回复，可以添加[at]，[uname]，[nickname]来对应艾特，用户群名称，昵称系统昵称
 }
 
-setu_score = on_regex("[瑟|色|涩]图[评|打]分", block=True, priority=5)
+setu_score = on_regex("[瑟|色|涩]图[评|打]分", block=True, priority=3)
 
 
 @setu_score.handle()
