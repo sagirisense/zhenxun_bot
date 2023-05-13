@@ -1,60 +1,57 @@
-from datetime import datetime
+from tortoise import fields
 
-from services.db_context import db
+from services.db_context import Model
 
 
-class OpenCasesUser(db.Model):
-    __tablename__ = 'open_cases_users'
-    __table_args__ = {'extend_existing': True}
+class OpenCasesUser(Model):
 
-    id = db.Column(db.Integer(), primary_key=True)
-    user_qq = db.Column(db.BigInteger(), nullable=False)
-    group_id = db.Column(db.BigInteger(), nullable=False)
-    total_count = db.Column(db.Integer(), nullable=False, default=0)
-    blue_count = db.Column(db.Integer(), nullable=False, default=0)
-    blue_st_count = db.Column(db.Integer(), nullable=False, default=0)
-    purple_count = db.Column(db.Integer(), nullable=False, default=0)
-    purple_st_count = db.Column(db.Integer(), nullable=False, default=0)
-    pink_count = db.Column(db.Integer(), nullable=False, default=0)
-    pink_st_count = db.Column(db.Integer(), nullable=False, default=0)
-    red_count = db.Column(db.Integer(), nullable=False, default=0)
-    red_st_count = db.Column(db.Integer(), nullable=False, default=0)
-    knife_count = db.Column(db.Integer(), nullable=False, default=0)
-    knife_st_count = db.Column(db.Integer(), nullable=False, default=0)
-    spend_money = db.Column(db.Integer(), nullable=False, default=0)
-    make_money = db.Column(db.Float(), nullable=False, default=0)
-    today_open_total = db.Column(db.Integer(), nullable=False, default=0)
-    open_cases_time_last = db.Column(db.DateTime(timezone=True), nullable=False, default=datetime.now())
-    knifes_name = db.Column(db.Unicode(), nullable=False, default="")
+    id = fields.IntField(pk=True, generated=True, auto_increment=True)
+    """自增id"""
+    user_qq = fields.BigIntField()
+    """用户id"""
+    group_id = fields.BigIntField()
+    """群聊id"""
+    total_count: int = fields.IntField(default=0)
+    """总开启次数"""
+    blue_count: int = fields.IntField(default=0)
+    """蓝色"""
+    blue_st_count: int = fields.IntField(default=0)
+    """蓝色暗金"""
+    purple_count: int = fields.IntField(default=0)
+    """紫色"""
+    purple_st_count: int = fields.IntField(default=0)
+    """紫色暗金"""
+    pink_count: int = fields.IntField(default=0)
+    """粉色"""
+    pink_st_count: int = fields.IntField(default=0)
+    """粉色暗金"""
+    red_count: int = fields.IntField(default=0)
+    """紫色"""
+    red_st_count: int = fields.IntField(default=0)
+    """紫色暗金"""
+    knife_count: int = fields.IntField(default=0)
+    """金色"""
+    knife_st_count: int = fields.IntField(default=0)
+    """金色暗金"""
+    spend_money: float = fields.IntField(default=0)
+    """花费金币"""
+    make_money: float = fields.FloatField(default=0)
+    """赚取金币"""
+    today_open_total: int = fields.IntField(default=0)
+    """今日开箱数量"""
+    open_cases_time_last = fields.DatetimeField()
+    """最后开箱日期"""
+    knifes_name: str = fields.TextField(default="")
+    """已获取金色"""
 
-    _idx1 = db.Index('open_cases_group_users_idx1', 'user_qq', 'group_id', unique=True)
+    class Meta:
+        table = "open_cases_users"
+        table_description = "开箱统计数据表"
+        unique_together = ("user_qq", "group_id")
 
     @classmethod
-    async def ensure(cls, user_qq: int, group_id: int, for_update: bool = False) -> 'OpenCasesUser':
-        query = cls.query.where(
-            (cls.user_qq == user_qq) & (cls.group_id == group_id)
-        )
-        if for_update:
-            query = query.with_for_update()
-        user = await query.gino.first()
-        return user or await cls.create(
-            user_qq=user_qq,
-            group_id=group_id,
-        )
-
-    @classmethod
-    async def get_user_all(cls, group_id: int = None) -> 'list':
-        user_list = []
-        if not group_id:
-            query = await cls.query.gino.all()
-        else:
-            query = await cls.query.where(
-                (cls.group_id == group_id)
-            ).gino.all()
-        for user in query:
-            user_list.append(user)
-        return user_list
-
-
-
-
+    async def _run_script(cls):
+        return [
+            "alter table open_cases_users alter COLUMN make_money type float;",  # 将make_money字段改为float
+            "alter table open_cases_users alter COLUMN spend_money type float;",  # 将spend_money字段改为float
+        ]

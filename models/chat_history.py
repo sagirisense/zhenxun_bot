@@ -1,90 +1,39 @@
 from datetime import datetime, timedelta
-from typing import List, Literal, Optional, Tuple, Union
+from typing import Any, List, Literal, Optional, Tuple, Union
 
-from services.db_context import db
+from tortoise import fields
+from tortoise.functions import Count
+
+from services.db_context import Model
 
 
-class ChatHistory(db.Model):
-    __tablename__ = "chat_history"
+class ChatHistory(Model):
 
-    id = db.Column(db.Integer(), primary_key=True)
-    user_qq = db.Column(db.BigInteger(), nullable=False)
-    group_id = db.Column(db.BigInteger())
-    text = db.Column(db.Text())
-    plain_text = db.Column(db.Text())
-    create_time = db.Column(db.DateTime(timezone=True), nullable=False)
+    id = fields.IntField(pk=True, generated=True, auto_increment=True)
+    """自增id"""
+    user_id = fields.CharField(255)
+    """用户id"""
+    group_id = fields.CharField(255, null=True)
+    """群聊id"""
+    text = fields.TextField(null=True)
+    """文本内容"""
+    plain_text = fields.TextField(null=True)
+    """纯文本"""
+    create_time = fields.DatetimeField(auto_now_add=True)
+    """创建时间"""
 
-    @classmethod
-    async def add_chat_msg(cls, user_qq: int, group_id: Optional[int], text: str, plain_text: str):
-        await cls.create(
-            user_qq=user_qq, group_id=group_id, text=text, plain_text=plain_text, create_time=datetime.now()
-        )
-
-    @classmethod
-    async def get_user_msg(
-        cls,
-        uid: int,
-        msg_type: Optional[Literal["private", "group"]],
-        days: Optional[int] = None,
-    ) -> List["ChatHistory"]:
-        """
-        说明:
-            获取用户消息
-        参数:
-            :param uid: 用户qq
-            :param msg_type: 消息类型，私聊或群聊
-            :param days: 限制日期
-        """
-        return await cls._get_msg(uid, None, "user", msg_type, days).gino.all()
-
-    @classmethod
-    async def get_group_user_msg(
-        cls,
-        uid: int,
-        gid: int,
-        limit: int = 10,
-        date_scope: Tuple[datetime, datetime] = None,
-    ) -> List["ChatHistory"]:
-        """
-        说明:
-            获取群聊指定用户聊天记录
-        参数:
-            :param uid: qq
-            :param gid: 群号
-            :param limit: 获取数量
-            :param date_scope: 日期范围，默认None为全搜索
-        """
-        return (
-            await cls._get_msg(uid, gid, "group", days=date_scope)
-            .limit(limit)
-            .gino.all()
-        )
-
-    @classmethod
-    async def get_group_user_msg_count(cls, uid: int, gid: int) -> Optional[int]:
-        """
-        说明:
-             查询群聊指定用户的聊天记录数量
-        参数:
-            :param uid: qq
-            :param gid: 群号
-        """
-        if x := await db.first(
-            db.text(
-                f"SELECT COUNT(id) as sum FROM public.chat_history WHERE user_qq = {uid} AND group_id = {gid}"
-            )
-        ):
-            return x[0]
-        return None
+    class Meta:
+        table = "chat_history"
+        table_description = "聊天记录数据表"
 
     @classmethod
     async def get_group_msg_rank(
         cls,
-        gid: int,
+        gid: Union[int, str],
         limit: int = 10,
         order: str = "DESC",
         date_scope: Optional[Tuple[datetime, datetime]] = None,
-    ) -> Optional[Tuple[int, int]]:
+    ) -> List["ChatHistory"]:
         """
         说明:
             获取排行数据
@@ -94,121 +43,78 @@ class ChatHistory(db.Model):
             :param order: 排序类型，desc，des
             :param date_scope: 日期范围
         """
-        sql = f"SELECT user_qq, COUNT(id) as sum FROM public.chat_history WHERE group_id = {gid} "
+        o = "-" if order == "DESC" else ""
+        query = cls.filter(group_id=str(gid))
         if date_scope:
-            sql += f"AND create_time BETWEEN '{date_scope[0]}' AND '{date_scope[1]}' "
-        sql += f"GROUP BY user_qq ORDER BY sum {order if order and order.upper() != 'DES' else ''} LIMIT {limit}"
-        return await db.all(db.text(sql))
+            query = query.filter(create_time__range=date_scope)
+        return list(
+            await query.annotate(count=Count("user_id"))
+            .order_by(o + "count")
+            .group_by("user_id")
+            .limit(limit)
+            .values_list("user_id", "count")
+        )  # type: ignore
 
     @classmethod
-    async def get_group_first_msg_datetime(cls, gid: int) -> Optional[datetime]:
+    async def get_group_first_msg_datetime(cls, group_id: Union[int, str]) -> Optional[datetime]:
         """
         说明:
             获取群第一条记录消息时间
         参数:
-            :param gid:
+            :param group_id: 群组id
         """
         if (
-            msg := await cls.query.where(cls.group_id == gid)
-            .order_by(cls.create_time)
-            .gino.first()
+            message := await cls.filter(group_id=str(group_id))
+            .order_by("create_time")
+            .first()
         ):
-            return msg.create_time
-        return None
+            return message.create_time
 
     @classmethod
-    async def get_user_msg_count(
+    async def get_message(
         cls,
-        uid: int,
-        msg_type: Optional[Literal["private", "group"]],
-        days: Optional[int] = None,
-    ) -> int:
-        """
-        说明:
-            获取用户消息数量
-        参数:
-            :param uid: 用户qq
-            :param msg_type: 消息类型，私聊或群聊
-            :param days: 限制日期
-        """
-        return (
-            await cls._get_msg(uid, None, "user", msg_type, days, True).gino.first()
-        )[0]
-
-    @classmethod
-    async def get_group_msg(
-        cls,
-        gid: int,
-        days: Optional[int] = None,
-    ) -> List["ChatHistory"]:
-        """
-        说明:
-            获取群聊消息
-        参数:
-            :param gid: 用户qq
-            :param days: 限制日期
-        """
-        return await cls._get_msg(None, gid, "group", None, days).gino.all()
-
-    @classmethod
-    async def get_group_msg_count(
-        cls,
-        gid: int,
-        days: Optional[int] = None,
-    ) -> List["ChatHistory"]:
-        """
-        说明:
-            获取群聊消息数量
-        参数:
-            :param gid: 用户qq
-            :param days: 限制日期
-        """
-        return (await cls._get_msg(None, gid, "group", None, days, True).gino.first())[
-            0
-        ]
-
-    @classmethod
-    def _get_msg(
-        cls,
-        uid: Optional[int],
-        gid: Optional[int],
+        uid: Union[int, str],
+        gid: Union[int, str],
         type_: Literal["user", "group"],
         msg_type: Optional[Literal["private", "group"]] = None,
         days: Optional[Union[int, Tuple[datetime, datetime]]] = None,
-        is_select_count: bool = False,
-    ):
+    ) -> List["ChatHistory"]:
         """
         说明:
             获取消息查询query
         参数:
-            :param uid: 用户qq
-            :param gid: 群号
+            :param uid: 用户id
+            :param gid: 群聊id
             :param type_: 类型，私聊或群聊
             :param msg_type: 消息类型，用户或群聊
             :param days: 限制日期
         """
-        if is_select_count:
-            setattr(ChatHistory, "count", db.func.count(cls.id).label("count"))
-            query = cls.select("count")
-        else:
-            query = cls.query
         if type_ == "user":
-            query = query.where(cls.user_qq == uid)
+            query = cls.filter(user_id=str(uid))
             if msg_type == "private":
-                query = query.where(cls.group_id == None)
+                query = query.filter(group_id__isnull=True)
             elif msg_type == "group":
-                query = query.where(cls.group_id != None)
+                query = query.filter(group_id__not_isnull=True)
         else:
-            query = query.where(cls.group_id == gid)
+            query = cls.filter(group_id=str(gid))
             if uid:
-                query = query.where(cls.user_qq == uid)
+                query = query.filter(user_id=str(uid))
         if days:
             if isinstance(days, int):
-                query = query.where(
-                    cls.create_time >= datetime.now() - timedelta(days=days)
+                query = query.filter(
+                    create_time__gte=datetime.now() - timedelta(days=days)
                 )
             elif isinstance(days, tuple):
-                query = query.where(cls.create_time >= days[0]).where(
-                    cls.create_time <= days[1]
-                )
-        return query
+                query = query.filter(create_time__range=days)
+        return await query.all()  # type: ignore
+
+    @classmethod
+    async def _run_script(cls):
+        return [
+            "alter table chat_history alter group_id drop not null;",  # 允许 group_id 为空
+            "alter table chat_history alter text drop not null;",  # 允许 text 为空
+            "alter table chat_history alter plain_text drop not null;",  # 允许 plain_text 为空
+            "ALTER TABLE chat_history RENAME COLUMN user_qq TO user_id;",  # 将user_id改为user_id
+            "ALTER TABLE chat_history ALTER COLUMN user_id TYPE character varying(255);",
+            "ALTER TABLE chat_history ALTER COLUMN group_id TYPE character varying(255);",
+        ]

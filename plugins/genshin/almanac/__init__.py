@@ -1,7 +1,8 @@
-from configs.config import Config
-from configs.path_config import IMAGE_PATH
 from nonebot import on_command
 from nonebot.adapters.onebot.v11 import GroupMessageEvent, MessageEvent
+
+from configs.config import Config
+from configs.path_config import IMAGE_PATH
 from services.log import logger
 from utils.manager import group_manager
 from utils.message_builder import image
@@ -35,6 +36,7 @@ Config.add_plugin_config(
     True,
     help_="被动 原神黄历提醒 进群默认开关状态",
     default_value=True,
+    type=bool,
 )
 
 almanac = on_command("原神黄历", priority=5, block=True)
@@ -65,4 +67,4 @@ async def _():
             mes = "[[_task|genshin_alc]]" + alc_img
             for gid in gl:
                 if group_manager.check_group_task_status(gid, "genshin_alc"):
-                    await bot.send_group_msg(group_id=int(gid), message="" + mes)
+                    await bot.send_group_msg(group_id=int(gid), message=mes)

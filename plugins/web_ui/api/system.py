@@ -1,9 +1,13 @@
 import asyncio
 import os
+from datetime import datetime
 from pathlib import Path
+from typing import Dict, Optional, Union
 
 import psutil
 import ujson as json
+from fastapi import APIRouter
+
 from configs.path_config import (
     DATA_PATH,
     FONT_PATH,
@@ -16,8 +20,15 @@ from configs.path_config import (
 from services.log import logger
 from utils.http_utils import AsyncHttpx
 
-from ..auth import Depends, User, token_to_user
-from ..config import *
+from ..models.model import (
+    Result,
+    SystemFolderSize,
+    SystemNetwork,
+    SystemResult,
+    SystemStatus,
+    SystemStatusList,
+)
+from ..utils import authentication
 
 CPU_DATA_PATH = DATA_PATH / "system" / "cpu.json"
 MEMORY_DATA_PATH = DATA_PATH / "system" / "memory.json"
@@ -27,32 +38,32 @@ cpu_data = {"data": []}
 memory_data = {"data": []}
 disk_data = {"data": []}
 
+router = APIRouter()
 
-@app.get("/webui/system")
+
+@router.get("/system", dependencies=[authentication()])
 async def _() -> Result:
     return await get_system_data()
 
 
-@app.get("/webui/system/status")
-async def _(user: User = Depends(token_to_user)) -> Result:
-    return Result(
-        code=200,
-        data=await asyncio.get_event_loop().run_in_executor(None, _get_system_status),
+@router.get("/status", dependencies=[authentication()])
+async def _() -> Result:
+    return Result.ok(
+        await asyncio.get_event_loop().run_in_executor(None, _get_system_status),
     )
 
 
-@app.get("/webui/system/disk")
-async def _(type_: Optional[str] = None, user: User = Depends(token_to_user)) -> Result:
-    return Result(
-        code=200,
+@router.get("/system/disk", dependencies=[authentication()])
+async def _(type_: Optional[str] = None) -> Result:
+    return Result.ok(
         data=await asyncio.get_event_loop().run_in_executor(
             None, _get_system_disk, type_
         ),
     )
 
 
-@app.get("/webui/system/statusList")
-async def _(user: User = Depends(token_to_user)) -> Result:
+@router.get("/system/statusList", dependencies=[authentication()])
+async def _() -> Result:
     global cpu_data, memory_data, disk_data
     await asyncio.get_event_loop().run_in_executor(None, _get_system_status)
     cpu_rst = cpu_data["data"][-10:] if len(cpu_data["data"]) > 10 else cpu_data["data"]
@@ -64,9 +75,8 @@ async def _(user: User = Depends(token_to_user)) -> Result:
     disk_rst = (
         disk_data["data"][-10:] if len(disk_data["data"]) > 10 else disk_data["data"]
     )
-    return Result(
-        code=200,
-        data=SystemStatusList(
+    return Result.ok(
+        SystemStatusList(
             cpu_data=cpu_rst,
             memory_data=memory_rst,
             disk_data=disk_rst,
@@ -74,7 +84,7 @@ async def _(user: User = Depends(token_to_user)) -> Result:
     )
 
 
-async def get_system_data(user: User = Depends(token_to_user)):
+async def get_system_data():
     """
     说明:
         获取系统信息，资源文件大小，网络状态等
@@ -94,18 +104,17 @@ async def get_system_data(user: User = Depends(token_to_user)):
     network = SystemNetwork(baidu=baidu, google=google)
     disk = await asyncio.get_event_loop().run_in_executor(None, _get_system_disk, None)
     status = await asyncio.get_event_loop().run_in_executor(None, _get_system_status)
-    return Result(
-        code=200,
-        data=SystemResult(
+    return Result.ok(
+        SystemResult(
             status=status,
             network=network,
-            disk=disk,
+            disk=disk,  # type: ignore
             check_time=datetime.now().replace(microsecond=0),
         ),
     )
 
 
-def _get_system_status(user: User = Depends(token_to_user)) -> SystemStatus:
+def _get_system_status() -> SystemStatus:
     """
     说明:
         获取系统信息等
@@ -123,7 +132,7 @@ def _get_system_status(user: User = Depends(token_to_user)) -> SystemStatus:
 
 
 def _get_system_disk(
-    type_: Optional[str], user: User = Depends(token_to_user)
+    type_: Optional[str],
 ) -> Union[SystemFolderSize, Dict[str, Union[float, datetime]]]:
     """
     说明:

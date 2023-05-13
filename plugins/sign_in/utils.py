@@ -1,31 +1,32 @@
-from .config import (
-    SIGN_RESOURCE_PATH,
-    SIGN_TODAY_CARD_PATH,
-    SIGN_BORDER_PATH,
-    SIGN_BACKGROUND_PATH,
-    lik2level,
-    lik2relation,
-    level2attitude,
-    weekdays,
-)
-from models.sign_group_user import SignGroupUser
-from models.group_member_info import GroupInfoUser
+import asyncio
+import os
+import random
+from datetime import datetime
+from io import BytesIO
+from pathlib import Path
+from typing import List, Optional
+
+import nonebot
+from nonebot import Driver
 from nonebot.adapters.onebot.v11 import MessageSegment
-from configs.config import Config
-from utils.utils import get_user_avatar
+
+from configs.config import NICKNAME, Config
+from configs.path_config import IMAGE_PATH
+from models.group_member_info import GroupInfoUser
+from models.sign_group_user import SignGroupUser
 from utils.image_utils import BuildImage
 from utils.message_builder import image
-from configs.config import NICKNAME
-from pathlib import Path
-from datetime import datetime
-from typing import Optional, List
-from nonebot import Driver
-from io import BytesIO
-import asyncio
-import random
-import nonebot
-import os
+from utils.utils import get_user_avatar
 
+from .config import (
+    SIGN_BACKGROUND_PATH,
+    SIGN_BORDER_PATH,
+    SIGN_RESOURCE_PATH,
+    SIGN_TODAY_CARD_PATH,
+    level2attitude,
+    lik2level,
+    lik2relation,
+)
 
 driver: Driver = nonebot.get_driver()
 
@@ -34,16 +35,19 @@ driver: Driver = nonebot.get_driver()
 async def init_image():
     SIGN_RESOURCE_PATH.mkdir(parents=True, exist_ok=True)
     SIGN_TODAY_CARD_PATH.mkdir(exist_ok=True, parents=True)
-    await GroupInfoUser.add_member_info(114514, 114514, "", datetime.min, 0)
-    _u = await GroupInfoUser.get_member_info(114514, 114514)
-    if _u.uid is None:
-        await _u.update(uid=0).apply()
+    if not await GroupInfoUser.get_or_none(user_id="114514"):
+        await GroupInfoUser.create(
+            user_id="114514",
+            group_id="114514",
+            user_name="",
+            uid=0,
+        )
     generate_progress_bar_pic()
     clear_sign_data_pic()
 
 
 async def get_card(
-    user: "SignGroupUser",
+    user: SignGroupUser,
     nickname: str,
     add_impression: Optional[float],
     gold: Optional[int],
@@ -51,14 +55,19 @@ async def get_card(
     is_double: bool = False,
     is_card_view: bool = False,
 ) -> MessageSegment:
-    user_id = user.user_qq
+    user_id = user.user_id
     date = datetime.now().date()
     _type = "view" if is_card_view else "sign"
     card_file = (
         Path(SIGN_TODAY_CARD_PATH) / f"{user_id}_{user.group_id}_{_type}_{date}.png"
     )
     if card_file.exists():
-        return image(f"{user_id}_{user.group_id}_{_type}_{date}.png", "sign/today_card")
+        return image(
+            IMAGE_PATH
+            / "sign"
+            / "today_card"
+            / f"{user_id}_{user.group_id}_{_type}_{date}.png"
+        )
     else:
         if add_impression == -1:
             card_file = (
@@ -67,12 +76,14 @@ async def get_card(
             )
             if card_file.exists():
                 return image(
-                    f"{user_id}_{user.group_id}_view_{date}.png",
-                    "sign/today_card",
+                    IMAGE_PATH
+                    / "sign"
+                    / "today_card"
+                    / f"{user_id}_{user.group_id}_view_{date}.png"
                 )
             is_card_view = True
         ava = BytesIO(await get_user_avatar(user_id))
-        uid = await GroupInfoUser.get_group_member_uid(user.user_qq, user.group_id)
+        uid = await GroupInfoUser.get_group_member_uid(user.user_id, user.group_id)
         impression_list = None
         if is_card_view:
             _, impression_list, _ = await SignGroupUser.get_all_impression(
@@ -98,7 +109,7 @@ async def get_card(
 def _generate_card(
     user: "SignGroupUser",
     nickname: str,
-    user_id: int,
+    user_id: str,
     impression: Optional[float],
     gold: Optional[int],
     gift: str,
@@ -118,12 +129,13 @@ def _generate_card(
     ava.circle()
     ava_bk.paste(ava, center_type="center")
     ava_bk.paste(ava_border, alpha=True, center_type="center")
-
+    add_impression = impression
+    impression = float(user.impression)
     info_img = BuildImage(250, 150, color=(255, 255, 255, 0), font_size=15)
     level, next_impression, previous_impression = get_level_and_next_impression(
-        user.impression
+        impression
     )
-    interpolation = next_impression - user.impression
+    interpolation = next_impression - impression
     if level == "9":
         level = "8"
         interpolation = 0
@@ -133,19 +145,15 @@ def _generate_card(
 
     bar_bk = BuildImage(220, 20, background=SIGN_RESOURCE_PATH / "bar_white.png")
     bar = BuildImage(220, 20, background=SIGN_RESOURCE_PATH / "bar.png")
+    ratio = 1 - (next_impression - user.impression) / (
+        next_impression - previous_impression
+    )
+    if next_impression == 0:
+        ratio = 0
+    bar.resize(w=int(bar.w * ratio) or bar.w, h=bar.h)
     bar_bk.paste(
         bar,
-        (
-            -int(
-                220
-                * (
-                    (next_impression - user.impression)
-                    / (next_impression - previous_impression)
-                )
-            ),
-            0,
-        ),
-        True,
+        alpha=True,
     )
     font_size = 30
     if "好感度双倍加持卡" in gift:
@@ -225,7 +233,7 @@ def _generate_card(
         )
         if impression_list:
             impression_list.sort(reverse=True)
-            index = impression_list.index(user.impression)
+            index = impression_list.index(impression)
             rank_img = BuildImage(
                 0,
                 0,
@@ -240,11 +248,11 @@ def _generate_card(
         )
         today_data.text((0, 25), f"总金币：{gold}")
         default_setu_prob = (
-            Config.get_config("send_setu", "INITIAL_SETU_PROBABILITY") * 100
+            Config.get_config("send_setu", "INITIAL_SETU_PROBABILITY") * 100  # type: ignore
         )
         today_data.text(
             (0, 50),
-            f"色图概率：{(default_setu_prob + user.impression if user.impression < 100 else 100):.2f}%",
+            f"色图概率：{(default_setu_prob + float(user.impression) if user.impression < 100 else 100):.2f}%",
         )
         today_data.text((0, 75), f"开箱次数：{(20 + int(user.impression / 3))}")
         _type = "view"
@@ -254,9 +262,9 @@ def _generate_card(
             0, 0, plain_text="今日签到", color=(255, 255, 255, 0), font_size=30
         )
         if is_double:
-            today_data.text((0, 0), f"好感度 + {impression / 2:.2f} × 2")
+            today_data.text((0, 0), f"好感度 + {add_impression / 2:.2f} × 2")
         else:
-            today_data.text((0, 0), f"好感度 + {impression:.2f}")
+            today_data.text((0, 0), f"好感度 + {add_impression:.2f}")
         today_data.text((0, 25), f"金币 + {gold}")
         _type = "sign"
     current_date = datetime.now()
@@ -285,7 +293,12 @@ def _generate_card(
     bk.paste(today_data, (580, 220), True)
     bk.paste(watermark, (15, 400), True)
     bk.save(SIGN_TODAY_CARD_PATH / f"{user_id}_{user.group_id}_{_type}_{data}.png")
-    return image(f"{user_id}_{user.group_id}_{_type}_{data}.png", "sign/today_card")
+    return image(
+        IMAGE_PATH
+        / "sign"
+        / "today_card"
+        / f"{user_id}_{user.group_id}_{_type}_{data}.png"
+    )
 
 
 def generate_progress_bar_pic():
@@ -333,12 +346,12 @@ def generate_progress_bar_pic():
 
 def get_level_and_next_impression(impression: float):
     if impression == 0:
-        return lik2level[2], 2, 0
+        return lik2level[10], 10, 0
     keys = list(lik2level.keys())
     for i in range(len(keys)):
         if impression > keys[i]:
             return lik2level[keys[i]], keys[i - 1], keys[i]
-    return lik2level[2], 2, 0
+    return lik2level[10], 10, 0
 
 
 def clear_sign_data_pic():

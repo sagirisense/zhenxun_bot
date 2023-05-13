@@ -1,19 +1,20 @@
-from utils.message_builder import image
-from configs.path_config import IMAGE_PATH
-from nonebot import on_command
-from nonebot.rule import to_me
+import os
+import random
+
+from nonebot import on_command, on_keyword
 from nonebot.adapters.onebot.v11 import GroupMessageEvent
 from nonebot.adapters.onebot.v11.permission import GROUP
-from utils.utils import FreqLimiter
+from nonebot.rule import to_me
+
 from configs.config import NICKNAME
-import random
-from nonebot import on_keyword
-import os
+from configs.path_config import IMAGE_PATH
+from utils.message_builder import image
+from utils.utils import FreqLimiter
 
 __zx_plugin_name__ = "基本设置 [Hidden]"
 __plugin_usage__ = "用法： 无"
 __plugin_version__ = 0.1
-__plugin_author__ = 'HibiKier'
+__plugin_author__ = "HibiKier"
 
 _flmt = FreqLimiter(300)
 
@@ -26,7 +27,7 @@ async def _(event: GroupMessageEvent):
         return
     _flmt.start_cd(event.group_id)
     await config_play_game.finish(
-        image(random.choice(os.listdir(IMAGE_PATH / "dayouxi")), "dayouxi")
+        image(IMAGE_PATH / random.choice(os.listdir(IMAGE_PATH / "dayouxi")))
     )
 
 

@@ -1,129 +1,108 @@
-from asyncpg import UniqueViolationError
+from tortoise import fields
 
-from services.db_context import db
+from services.db_context import Model
+from typing import Union
 
+class LevelUser(Model):
 
-class LevelUser(db.Model):
-    __tablename__ = "level_users"
+    id = fields.IntField(pk=True, generated=True, auto_increment=True)
+    """自增id"""
+    user_id = fields.CharField(255)
+    """用户id"""
+    group_id = fields.CharField(255)
+    """群聊id"""
+    user_level = fields.BigIntField()
+    """用户权限等级"""
+    group_flag = fields.IntField(default=0)
+    """特殊标记，是否随群管理员变更而设置权限"""
 
-    id = db.Column(db.Integer(), primary_key=True)
-    user_qq = db.Column(db.BigInteger(), nullable=False)
-    group_id = db.Column(db.BigInteger(), nullable=False)
-    user_level = db.Column(db.BigInteger(), nullable=False)
-    group_flag = db.Column(db.Integer(), nullable=False, default=0)
-
-    _idx1 = db.Index("level_group_users_idx1", "user_qq", "group_id", unique=True)
+    class Meta:
+        table = "level_users"
+        table_description = "用户权限数据库"
+        unique_together = ("user_id", "group_id")
 
     @classmethod
-    async def get_user_level(cls, user_qq: int, group_id: int) -> int:
+    async def get_user_level(cls, user_id: Union[int, str], group_id: Union[int, str]) -> int:
         """
         说明:
             获取用户在群内的等级
         参数:
-            :param user_qq: qq号
-            :param group_id: 群号
+            :param user_id: 用户id
+            :param group_id: 群组id
         """
-        query = cls.query.where((cls.user_qq == user_qq) & (cls.group_id == group_id))
-        user = await query.gino.first()
-        if user:
+        if user := await cls.get_or_none(user_id=str(user_id), group_id=str(group_id)):
             return user.user_level
-        else:
-            return -1
+        return -1
 
     @classmethod
     async def set_level(
-        cls, user_qq: int, group_id: int, level: int, group_flag: int = 0
-    ) -> bool:
+        cls, user_id: Union[int, str], group_id: Union[int, str], level: int, group_flag: int = 0
+    ):
         """
         说明:
             设置用户在群内的权限
         参数:
-            :param user_qq: qq号
-            :param group_id: 群号
+            :param user_id: 用户id
+            :param group_id: 群组id
             :param level: 权限等级
             :param group_flag: 是否被自动更新刷新权限 0：是，1：否
         """
-        query = cls.query.where((cls.user_qq == user_qq) & (cls.group_id == group_id))
-        query = query.with_for_update()
-        user = await query.gino.first()
-        try:
-            if not user:
-                await cls.create(
-                    user_qq=user_qq,
-                    group_id=group_id,
-                    user_level=level,
-                    group_flag=group_flag,
-                )
-                return True
-            else:
-                await user.update(user_level=level, group_flag=group_flag).apply()
-                return False
-        except UniqueViolationError:
-            return False
+        await cls.update_or_create(
+            user_id=str(user_id),
+            group_id=str(group_id),
+            defaults={"user_level": level, "group_flag": group_flag},
+        )
 
     @classmethod
-    async def delete_level(cls, user_qq: int, group_id: int) -> bool:
+    async def delete_level(cls, user_id: Union[int, str], group_id: Union[int, str]) -> bool:
         """
         说明:
             删除用户权限
         参数:
-            :param user_qq: qq号
-            :param group_id: 群号
+            :param user_id: 用户id
+            :param group_id: 群组id
         """
-        query = cls.query.where((cls.user_qq == user_qq) & (cls.group_id == group_id))
-        query = query.with_for_update()
-        user = await query.gino.first()
-        if user is None:
-            return False
-        else:
+        if user := await cls.get_or_none(user_id=str(user_id), group_id=str(group_id)):
             await user.delete()
             return True
+        return False
 
     @classmethod
-    async def check_level(cls, user_qq: int, group_id: int, level: int) -> bool:
+    async def check_level(cls, user_id: Union[int, str], group_id: Union[int, str], level: int) -> bool:
         """
         说明:
             检查用户权限等级是否大于 level
         参数:
-            :param user_qq: qq号
-            :param group_id: 群号
+            :param user_id: 用户id
+            :param group_id: 群组id
             :param level: 权限等级
         """
-        if group_id != 0:
-            query = cls.query.where(
-                (cls.user_qq == user_qq) & (cls.group_id == group_id)
-            )
-            user = await query.gino.first()
-            if user is None:
-                return False
-            user_level = user.user_level
+        if group_id:
+            if user := await cls.get_or_none(user_id=str(user_id), group_id=str(group_id)):
+                return user.user_level >= level
         else:
-            query = cls.query.where(cls.user_qq == user_qq)
-            highest_level = 0
-            for user in await query.gino.all():
-                if user.user_level > highest_level:
-                    highest_level = user.user_level
-            user_level = highest_level
-        if user_level >= level:
-            return True
-        else:
-            return False
+            user_list = await cls.filter(user_id=str(user_id)).all()
+            user = max(user_list, key=lambda x: x.user_level)
+            return user.user_level >= level
+        return False
 
     @classmethod
-    async def is_group_flag(cls, user_qq: int, group_id: int) -> bool:
+    async def is_group_flag(cls, user_id: Union[int, str], group_id: Union[int, str]) -> bool:
         """
         说明:
             检测是否会被自动更新刷新权限
         参数:
-            :param user_qq: qq号
-            :param group_id: 群号
+            :param user_id: 用户id
+            :param group_id: 群组id
         """
-        user = await cls.query.where(
-            (cls.user_qq == user_qq) & (cls.group_id == group_id)
-        ).gino.first()
-        if not user:
-            return False
-        if user.group_flag == 1:
-            return True
-        else:
-            return False
+        if user := await cls.get_or_none(user_id=str(user_id), group_id=str(group_id)):
+            return user.group_flag == 1
+        return False
+
+    @classmethod
+    async def _run_script(cls):
+        return ["ALTER TABLE level_users RENAME COLUMN user_qq TO user_id;",  # 将user_id改为user_id
+                "ALTER TABLE level_users ALTER COLUMN user_id TYPE character varying(255);",
+                # 将user_id字段类型改为character varying(255)
+                "ALTER TABLE level_users ALTER COLUMN group_id TYPE character varying(255);"
+                ]

@@ -1,28 +1,30 @@
+from datetime import datetime
+from typing import Any, List, Tuple
+
+from nonebot import on_command, on_message, on_regex
 from nonebot.adapters.onebot.v11 import (
+    Bot,
     Event,
-    MessageEvent,
     GroupMessageEvent,
     Message,
-    Bot,
+    MessageEvent,
 )
 from nonebot.matcher import Matcher
 from nonebot.message import run_preprocessor
+from nonebot.params import CommandArg, RegexGroup
+from nonebot.permission import SUPERUSER
+
+from configs.config import NICKNAME, Config
+from models.ban_user import BanUser
+from services.log import logger
 from utils.image_utils import BuildImage
 from utils.manager import group_manager
-from utils.utils import get_message_text, is_number
-from nonebot.params import RegexGroup, CommandArg
-from .utils import black_word_manager
-from nonebot import on_command, on_message, on_regex
-from configs.config import Config, NICKNAME
-from nonebot.permission import SUPERUSER
-from .data_source import show_black_text_image, set_user_punish
-from services.log import logger
-from models.ban_user import BanUser
-from datetime import datetime
 from utils.message_builder import image
-from .model import BlackWord
-from typing import Tuple, Any
+from utils.utils import get_message_text, is_number
 
+from .data_source import set_user_punish, show_black_text_image
+from .model import BlackWord
+from .utils import black_word_manager
 
 __zx_plugin_name__ = "敏感词检测"
 __plugin_usage__ = """
@@ -38,7 +40,7 @@ usage：
     设置惩罚id需要通过 '记录名单u:xxxxxxxx' 获取
     指令：
         记录名单
-        设置惩罚 [user_id] [id] [punish_level]
+        设置惩罚 [user_id] [下标] [惩罚等级]
         示例：记录名单
         示例：记录名单u:12345678
         示例：设置惩罚 12345678 1 4
@@ -54,7 +56,13 @@ __plugin_settings__ = {
 
 
 Config.add_plugin_config(
-    "black_word", "CYCLE_DAYS", 30, name="敏感词检测与惩罚", help_="黑名单词汇记录周期", default_value=30
+    "black_word",
+    "CYCLE_DAYS",
+    30,
+    name="敏感词检测与惩罚",
+    help_="黑名单词汇记录周期",
+    default_value=30,
+    type=int,
 )
 
 Config.add_plugin_config(
@@ -63,10 +71,11 @@ Config.add_plugin_config(
     [5, 1, 1, 1, 1],
     help_="各个级别惩罚的容忍次数，依次为：1, 2, 3, 4, 5",
     default_value=[5, 1, 1, 1, 1],
+    type=List[int],
 )
 
 Config.add_plugin_config(
-    "black_word", "AUTO_PUNISH", True, help_="是否启动自动惩罚机制", default_value=True
+    "black_word", "AUTO_PUNISH", True, help_="是否启动自动惩罚机制", default_value=True, type=bool
 )
 
 # Config.add_plugin_config(
@@ -79,6 +88,7 @@ Config.add_plugin_config(
     360,
     help_="Union[int, List[int, int]]Ban时长（分钟），四级惩罚，可以为指定数字或指定列表区间(随机)，例如 [30, 360]",
     default_value=360,
+    type=int,
 )
 
 Config.add_plugin_config(
@@ -87,6 +97,7 @@ Config.add_plugin_config(
     7,
     help_="Union[int, List[int, int]]Ban时长（天），三级惩罚，可以为指定数字或指定列表区间(随机)，例如 [7, 30]",
     default_value=360,
+    type=int,
 )
 
 Config.add_plugin_config(
@@ -103,6 +114,7 @@ Config.add_plugin_config(
     True,
     help_="自动提级机制，当周期内处罚次数大于某一特定值就提升惩罚等级",
     default_value=True,
+    type=bool,
 )
 
 Config.add_plugin_config(
@@ -111,6 +123,7 @@ Config.add_plugin_config(
     3,
     help_="在CYCLE_DAYS周期内触发指定惩罚次数后提升惩罚等级",
     default_value=3,
+    type=int,
 )
 
 Config.add_plugin_config(
@@ -119,6 +132,7 @@ Config.add_plugin_config(
     False,
     help_="当未检测到已收录的敏感词时，开启ALAPI文本检测并将疑似文本发送给超级用户",
     default_value=False,
+    type=bool,
 )
 
 Config.add_plugin_config(
@@ -127,6 +141,7 @@ Config.add_plugin_config(
     True,
     help_="当文本包含任意敏感词时，停止向下级插件传递，即不触发ai",
     default_value=True,
+    type=bool,
 )
 
 message_matcher = on_message(priority=1, block=False)
@@ -150,24 +165,32 @@ async def _(
     matcher: Matcher,
     event: Event,
 ):
+    msg = get_message_text(event.json())
     if (
         isinstance(event, MessageEvent)
         and event.is_tome()
-        and matcher.plugin_name == "black_word"
-        and not await BanUser.is_ban(event.user_id)
-        and str(event.user_id) not in bot.config.superusers
-        and not get_message_text(event.json()).startswith("原神绑定")
+        and not msg.startswith("原神绑定")
     ):
-        # 屏蔽群权限-1的群
-        if isinstance(event, GroupMessageEvent) and group_manager.get_group_level(event.group_id) < 0:
-            return
-        user_id = event.user_id
-        group_id = event.group_id if isinstance(event, GroupMessageEvent) else None
-        msg = get_message_text(event.json())
-        if await black_word_manager.check(user_id, group_id, msg) and Config.get_config(
-            "black_word", "CONTAIN_BLACK_STOP_PROPAGATION"
+        # if str(event.user_id) not in bot.config.superusers:
+        #     return logger.debug(f"超级用户跳过黑名单词汇检查 Message: {msg}", target=event.user_id)
+        if (
+            event.is_tome()
+            and matcher.plugin_name == "black_word"
+            and not await BanUser.is_ban(event.user_id)
         ):
-            matcher.stop_propagation()
+            # 屏蔽群权限-1的群
+            if (
+                isinstance(event, GroupMessageEvent)
+                and group_manager.get_group_level(event.group_id) < 0
+            ):
+                return
+            user_id = event.user_id
+            group_id = event.group_id if isinstance(event, GroupMessageEvent) else None
+            msg = get_message_text(event.json())
+            if await black_word_manager.check(
+                user_id, group_id, msg
+            ) and Config.get_config("black_word", "CONTAIN_BLACK_STOP_PROPAGATION"):
+                matcher.stop_propagation()
 
 
 @show_black.handle()

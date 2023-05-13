@@ -1,4 +1,4 @@
-from typing import Dict, Any, Optional
+from typing import Any, Dict, Optional
 
 from . import StaticData
 from .models import PluginData
@@ -24,12 +24,8 @@ class PluginDataManager(StaticData[PluginData]):
             raise ValueError(f"PluginInfoManager {info.model}:{info.name} 插件名称及类型已存在")
         self._data[info.model] = info
 
-    def get(self, item: str, default: Any = None) -> PluginData:
+    def get(self, item: str, default: Any = None) -> Optional[PluginData]:
         return self._data.get(item, default)
 
-    def __getitem__(self, item) -> PluginData:
+    def __getitem__(self, item) -> Optional[PluginData]:
         return self._data.get(item)
-
-
-
-
