@@ -12,7 +12,7 @@ from configs.config import Config
 from configs.path_config import IMAGE_PATH, TEMP_PATH, TEXT_PATH
 from services.log import logger
 from utils.http_utils import AsyncHttpx
-from utils.image_utils import compressed_image, get_img_hash
+from utils.image_utils import compressed_image, get_img_hash, convert_to_origin_type
 from utils.utils import change_pixiv_image_links, get_bot
 
 from .._model import Setu

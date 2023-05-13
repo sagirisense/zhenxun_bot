@@ -15,7 +15,7 @@ from configs.config import NICKNAME, Config
 from configs.path_config import IMAGE_PATH, TEMP_PATH
 from services.log import logger
 from utils.http_utils import AsyncHttpx
-from utils.image_utils import compressed_image, get_img_hash
+from utils.image_utils import compressed_image, get_img_hash, convert_to_origin_type
 from utils.message_builder import image
 from utils.utils import change_img_md5, change_pixiv_image_links
 
