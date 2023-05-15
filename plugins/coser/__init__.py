@@ -44,7 +44,7 @@ coser = on_regex(r"^(\d)?连?(cos|COS|coser|括丝|COSER)$", priority=5, block=T
 
 # 纯cos，较慢:https://picture.yinux.workers.dev
 # 比较杂，有福利姬，较快:https://api.jrsgslb.cn/cos/url.php?return=img
-url = "https://picture.yinux.workers.dev"
+url = "https://3650000.xyz/api/?type=json&mode=3"
 
 
 @coser.handle()
@@ -53,13 +53,18 @@ async def _(event: MessageEvent, reg_group: Tuple[Any, ...] = RegexGroup()):
     for _ in range(int(num)):
         path = TEMP_PATH / f"cos_cc{int(time.time())}.jpeg"
         try:
-            await AsyncHttpx.download_file(url, path)
-            msg_id = await coser.send(image(path))
-            withdraw_message_manager.withdraw_message(
-                event,
-                msg_id["message_id"],
-                Config.get_config("coser", "WITHDRAW_COS_MESSAGE"),
-            )
+            logger.info((await AsyncHttpx.get(url)).json)
+            data = (await AsyncHttpx.get(url)).json()
+            if data["code"] == 200:
+                await AsyncHttpx.download_file(data["url"], path)
+                msg_id = await coser.send(image(path))
+                withdraw_message_manager.withdraw_message(
+                    event,
+                    msg_id["message_id"],
+                    Config.get_config("coser", "WITHDRAW_COS_MESSAGE"),
+                )
+            else:
+                await coser.send("你cos给我看！")
         except Exception as e:
             await coser.send("你cos给我看！")
             logger.error(f"coser 发送了未知错误 {type(e)}：{e}")

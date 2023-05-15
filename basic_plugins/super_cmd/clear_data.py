@@ -30,7 +30,6 @@ clear_data = on_command(
 )
 
 resources_manager.add_temp_dir(TEMP_PATH)
-resources_manager.add_temp_dir(IMAGE_PATH/"temp")
 
 
 @clear_data.handle()

@@ -109,11 +109,12 @@ async def update_setu_img(flag: bool = False):
         count += 1
         path = _path / "_r18" if image.is_r18 else _path / "_setu"
         local_image = path / f"{image.local_id}.{image.prefix}"
+        path.mkdir(exist_ok=True, parents=True)
+        TEMP_PATH.mkdir(exist_ok=True, parents=True)
         if local_image.exists():
             filename = convert_to_origin_type(local_image)
             local_image = path / filename
-        path.mkdir(exist_ok=True, parents=True)
-        TEMP_PATH.mkdir(exist_ok=True, parents=True)
+
         if not local_image.exists() or not image.img_hash:
             temp_file = TEMP_PATH / f"{image.local_id}.{image.prefix}"
             if temp_file.exists():
@@ -152,7 +153,7 @@ async def update_setu_img(flag: bool = False):
                 except FileNotFoundError:
                     logger.warning(f"文件 {image.local_id}.{image.prefix} 不存在，跳过...")
                     continue
-                img_hash = str(get_img_hash(f"{path}/{image.local_id}.jpg"))
+                img_hash = str(get_img_hash(f"{path}/{filename}"))
                 image.img_hash = img_hash
                 await image.save(update_fields=["img_hash"])
                 # await Setu.update_setu_data(image.pid, img_hash=img_hash)
@@ -166,7 +167,7 @@ async def update_setu_img(flag: bool = False):
                     local_image.unlink()
                     max_num = await Setu.delete_image(image.pid, image.img_url)
                     if (path / f"{max_num}.jpg").exists():
-                        os.rename(path / f"{max_num}.jpg", local_image)
+                        os.rename(path / f"{max_num}.{image.prefix}", local_image)
                         logger.warning(f"更新色图 PID：{image.pid} 404，已删除并替换")
             except Exception as e:
                 _success -= 1

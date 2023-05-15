@@ -66,6 +66,10 @@ class Setu(Model):
                     | Q(title__contains=tag)
                     | Q(author__contains=tag)
                 )
+        if img_url:
+            query = query.filter(img_url = img_url)
+        if hash_not_none:
+            query = query.filter(img_hash__not = '')
         query = query.annotate(rand=Random()).limit(limit)
         return await query.all()
 

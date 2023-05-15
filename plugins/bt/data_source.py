@@ -3,7 +3,7 @@ from bs4 import BeautifulSoup
 from configs.config import Config
 from utils.http_utils import AsyncHttpx
 
-url = "http://www.eclzz.love"
+url = "http://www.eclzz.ink"
 
 
 async def get_bt_info(keyword: str, page: int):

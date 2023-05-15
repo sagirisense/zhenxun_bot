@@ -30,7 +30,7 @@ host_pattern = re.compile(r"https?://([^/]+)")
 
 # 获取url
 async def get_setu_urls(
-    tags: List[str], num: int = 1, r18: bool = False, command: str = ""
+    tags: List[str], num: int = 1, r18: bool = False, command: str = "",msg: Optional[str] = None
 ) -> Tuple[List[str], List[str], List[tuple], int]:
     tags = tags[:3] if len(tags) > 3 else tags
     params = {
@@ -54,7 +54,7 @@ async def get_setu_urls(
                         text_list,
                         add_databases_list,
                     ) = await asyncio.get_event_loop().run_in_executor(
-                        None, _setu_data_process, data, command, msg
+                        None, _setu_data_process, data, command,msg
                     )
                     num = num if num < len(data) else len(data)
                     random_idx = random.sample(range(len(data)), num)
@@ -91,10 +91,12 @@ async def search_online_setu(
     :param id_: 本地id
     :param path_: 存储路径
     """
-    url_ = change_pixiv_image_links(url_)
+    ws_url = Config.get_config("pixiv", "PIXIV_NGINX_URL")
+    if ws_url:
+        url_ = url_.replace("i.pximg.net", ws_url).replace("i.pixiv.cat", ws_url)
     index = random.randint(1, 100000) if id_ is None else id_
     base_path = IMAGE_PATH / path_ if path_ else TEMP_PATH
-    file_name = f"{index}_temp_setu.jpg" if path_ == TEMP_PATH else f"{index}.jpg"
+    file_name = f"{index}_temp_setu.jpg" if base_path == TEMP_PATH else f"{index}.jpg"
     file = base_path / file_name
     base_path.mkdir(parents=True, exist_ok=True)
     for i in range(3):
@@ -106,16 +108,16 @@ async def search_online_setu(
                 timeout=Config.get_config("send_setu", "TIMEOUT"),
             ):
                 continue
-            if path_:
-                file_name = convert_to_origin_type(path_ / file_name)
+            if base_path:
+                file_name = convert_to_origin_type(base_path/ file_name)
             if id_ is not None:
-                if os.path.getsize(base_path / f"{index}.jpg") > 1024 * 1024 * 1.5:
+                if os.path.getsize(base_path / file_name) > 1024 * 1024 * 1.5:
                     compressed_image(
-                        base_path / f"{index}.jpg",
+                        base_path / file_name,
                     )
             logger.info(f"下载 lolicon 图片 {url_} 成功， id：{index}")
-            change_img_md5(file)
-            return image(file), index
+            change_img_md5(base_path/file_name)
+            return image(base_path / file_name), index
         except TimeoutError as e:
             logger.error(f"下载图片超时", "色图", e=e)
         except Exception as e:
@@ -187,7 +189,7 @@ async def get_setu_list(
 
 
 # 初始化消息
-def gen_message(setu_image: Setu, img_msg: bool = False, tags: Optional[str] = None) -> str:
+async def gen_message(setu_image: Setu, img_msg: bool = False, tags: Optional[str] = None) -> str:
     """判断是否获取图片信息
 
     Args:
@@ -195,6 +197,9 @@ def gen_message(setu_image: Setu, img_msg: bool = False, tags: Optional[str] = N
 
     Returns:
         str: 图片信息
+        :param setu_image:
+        :param img_msg:
+        :param tags:
     """
     local_id = setu_image.local_id
     title = setu_image.title
@@ -202,14 +207,8 @@ def gen_message(setu_image: Setu, img_msg: bool = False, tags: Optional[str] = N
     pid = setu_image.pid
     prefix = setu_image.prefix
     match_keywords = None
-    hash_obfuscation = Config.get_config("send_setu", "HASH_OBFUSCATION")
-    file = IMAGE_PATH / f'{r18_path if setu_image.is_r18 else path}/{local_id}.{prefix}'
     path_ = r18_path if setu_image.is_r18 else path
-    if not file.exists():
-        await search_online_setu(setu_image.img_url, path_=path_ if not hash_obfuscation else None)
-    else:
-        if hash_obfuscation:
-            change_img_md5(file)
+    file = IMAGE_PATH / path_ / f"{setu_image.local_id}.{prefix}"
     if tags is not None:
         match_keywords = _search_match_keywords(setu_image, tags)
     if Config.get_config("send_setu", "SHOW_INFO"):
@@ -220,11 +219,13 @@ def gen_message(setu_image: Setu, img_msg: bool = False, tags: Optional[str] = N
             f"PID：{pid}\n"
             f"{match_keywords if match_keywords is not None else ''}"
             # f"{image(f'{local_id}', temp) if img_msg else ''}" if hash_obfuscation else
-            f"{image(f'{local_id}.{prefix}', f'{r18_path if setu_image.is_r18 else path}') if img_msg else ''}"
+            + (
+                await check_local_exists_or_download(setu_image)
+            )[0]
         )
     return (
-        # f"{image(f'{local_id}', temp) if img_msg else ''}" if hash_obfuscation else
-        f"{image(f'{local_id}.{prefix}', f'{r18_path if setu_image.is_r18 else path}') if img_msg else ''}")
+        await check_local_exists_or_download(setu_image)
+    )[0]
 
 
 # 罗翔老师！
