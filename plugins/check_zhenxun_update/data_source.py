@@ -67,8 +67,9 @@ async def check_update(bot: Bot) -> Tuple[int, str]:
     if data:
         latest_version = data["name"]
         if _version != latest_version:
-            tar_gz_url = "https://ghproxy.com/https://github.com/sagirisense/zhenxun_bot/archive/refs/tags/" + data[
-                "tag_name"] + ".tar.gz"
+            # tar_gz_url = "https://ghproxy.com/https://github.com/sagirisense/zhenxun_bot/archive/refs/tags/" + data[
+            #     "tag_name"] + ".tar.gz"
+            tar_gz_url = data["tarball_url"]
             logger.info(f"检测格蕾修已更新，当前版本：{_version}，最新版本：{latest_version}")
             await bot.send_private_msg(
                 user_id=int(list(bot.config.superusers)[0]),
@@ -76,8 +77,11 @@ async def check_update(bot: Bot) -> Tuple[int, str]:
             )
             logger.info(f"开始下载格蕾修最新版文件....")
             tar_gz_url = (await AsyncHttpx.get(tar_gz_url)).headers.get("Location")
+            begin_time = datetime.datetime.now()
             if await AsyncHttpx.download_file(tar_gz_url, zhenxun_latest_tar_gz):
-                logger.info("下载格蕾修最新版文件完成....")
+                end_time = datetime.datetime.now()
+                diff = (end_time - begin_time).seconds
+                logger.info(f"下载格蕾修最新版文件完成....用时{diff}s")
                 error = await asyncio.get_event_loop().run_in_executor(
                     None, _file_handle, latest_version
                 )
