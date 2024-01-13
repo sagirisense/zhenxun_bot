@@ -70,6 +70,12 @@ __plugin_configs__ = {
         "default_value": False,
         "type": bool,
     },
+    "DOWNLOAD_DYNAMIC_IMAGE": {
+        "value": True,
+        "help": "下载动态中的图片并发送在提醒消息中",
+        "default_value": True,
+        "type": bool,
+    },
 }
 
 add_sub = on_command("添加订阅", priority=5, block=True)
@@ -255,11 +261,11 @@ async def _():
         if sub:
             try:
                 logger.debug(f"Bilibili订阅开始检测：{sub.sub_id}")
-                rst = await get_sub_status(sub.sub_id, sub.sub_type)
-                await send_sub_msg(rst or "", sub, bot)  # type: ignore
+                rst = await get_sub_status(sub.sub_id, sub.sub_id, sub.sub_type)
+                await send_sub_msg(rst, sub, bot)  # type: ignore
                 if sub.sub_type == "live":
-                    rst = await get_sub_status(sub.sub_id, "up")
-                    await send_sub_msg(rst or "", sub, bot)  # type: ignore
+                    rst += "\n" + await get_sub_status(sub.uid, sub.sub_id, "up")
+                    await send_sub_msg(rst, sub, bot)  # type: ignore
             except Exception as e:
                 logger.error(f"B站订阅推送发生错误 sub_id：{sub.sub_id}", e=e)
 
@@ -272,7 +278,7 @@ async def send_sub_msg(rst: str, sub: BilibiliSub, bot: Bot):
     :param bot: Bot
     """
     temp_group = []
-    if rst:
+    if rst and rst.strip():
         for x in sub.sub_users.split(",")[:-1]:
             try:
                 if ":" in x and x.split(":")[1] not in temp_group:
@@ -298,4 +304,4 @@ async def send_sub_msg(rst: str, sub: BilibiliSub, bot: Bot):
                 else:
                     await bot.send_private_msg(user_id=int(x), message=Message(rst))
             except Exception as e:
-                logger.error(f"B站订阅推送发生错误 sub_id：{sub.sub_id}", e=e)
+                logger.error(f"B站订阅推送发生错误 sub_id: {sub.sub_id}", e=e)

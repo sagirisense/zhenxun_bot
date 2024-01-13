@@ -63,7 +63,9 @@ def add_count(user: OpenCasesUser, skin: BuffSkin, case_price: float):
     user.spend_money += 17 + case_price
 
 
-async def get_user_max_count(user_id: str, group_id: int) -> int:
+async def get_user_max_count(
+    user_id: Union[int, str], group_id: Union[str, int]
+) -> int:
     """获取用户每日最大开箱次数
 
     Args:
@@ -84,7 +86,9 @@ async def get_user_max_count(user_id: str, group_id: int) -> int:
     return int(initial_open_case_count + impression / each_impression_add_count)  # type: ignore
 
 
-async def open_case(user_id: str, group_id: int, case_name: str) -> Union[str, Message]:
+async def open_case(
+    user_id: Union[int, str], group_id: Union[int, str], case_name: str
+) -> Union[str, Message]:
     """开箱
 
     Args:
@@ -95,6 +99,8 @@ async def open_case(user_id: str, group_id: int, case_name: str) -> Union[str, M
     Returns:
         Union[str, Message]: 回复消息
     """
+    user_id = str(user_id)
+    group_id = str(group_id)
     if not CaseManager.CURRENT_CASES:
         return "未收录任何武器箱"
     if not case_name:
@@ -122,7 +128,10 @@ async def open_case(user_id: str, group_id: int, case_name: str) -> Union[str, M
         case_price = case_skin.sell_min_price
     user.today_open_total += 1
     user.total_count += 1
-    await user.save(update_fields=["today_open_total", "total_count"])
+    user.open_cases_time_last = datetime.now()
+    await user.save(
+        update_fields=["today_open_total", "total_count", "open_cases_time_last"]
+    )
     add_count(user, skin, case_price)
     ridicule_result = random.choice(RESULT_MESSAGE[skin.color])
     price_result = skin.sell_min_price
@@ -159,7 +168,7 @@ async def open_case(user_id: str, group_id: int, case_name: str) -> Union[str, M
 
 
 async def open_multiple_case(
-    user_id: str, group_id: int, case_name: str, num: int = 10
+    user_id: Union[int, str], group_id: Union[str, int], case_name: str, num: int = 10
 ):
     """多连开箱
 
@@ -172,6 +181,8 @@ async def open_multiple_case(
     Returns:
         _type_: _description_
     """
+    user_id = str(user_id)
+    group_id = str(group_id)
     if not CaseManager.CURRENT_CASES:
         return "未收录任何武器箱"
     if not case_name:
@@ -203,7 +214,10 @@ async def open_multiple_case(
     now = datetime.now()
     user.today_open_total += num
     user.total_count += num
-    await user.save(update_fields=["today_open_total", "total_count"])
+    user.open_cases_time_last = datetime.now()
+    await user.save(
+        update_fields=["today_open_total", "total_count", "open_cases_time_last"]
+    )
     case_price = 0
     if case_skin := await BuffSkin.get_or_none(case_name=case_name, color="CASE"):
         case_price = case_skin.sell_min_price
@@ -275,8 +289,12 @@ def _handle_is_MAX_COUNT() -> str:
     return f"今天已达开箱上限了喔，明天再来吧\n(提升好感度可以增加每日开箱数 #疯狂暗示)"
 
 
-async def total_open_statistics(user_id: str, group: str) -> str:
-    user, _ = await OpenCasesUser.get_or_create(user_id=user_id, group_id=group)
+async def total_open_statistics(
+    user_id: Union[str, int], group_id: Union[str, int]
+) -> str:
+    user, _ = await OpenCasesUser.get_or_create(
+        user_id=str(user_id), group_id=str(group_id)
+    )
     return (
         f"开箱总数：{user.total_count}\n"
         f"今日开箱：{user.today_open_total}\n"
@@ -296,8 +314,8 @@ async def total_open_statistics(user_id: str, group: str) -> str:
     )
 
 
-async def group_statistics(group: str):
-    user_list = await OpenCasesUser.filter(group_id=group).all()
+async def group_statistics(group_id: Union[int, str]):
+    user_list = await OpenCasesUser.filter(group_id=str(group_id)).all()
     #          lan   zi   fen   hong   jin  pricei
     uplist = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.0, 0, 0]
     for user in user_list:
@@ -332,7 +350,9 @@ async def group_statistics(group: str):
     )
 
 
-async def get_my_knifes(user_id: str, group_id: str) -> Union[str, MessageSegment]:
+async def get_my_knifes(
+    user_id: Union[str, int], group_id: Union[str, int]
+) -> Union[str, MessageSegment]:
     """获取我的金色
 
     Args:
@@ -342,7 +362,7 @@ async def get_my_knifes(user_id: str, group_id: str) -> Union[str, MessageSegmen
     Returns:
         Union[str, MessageSegment]: 回复消息或图片
     """
-    data_list = await get_old_knife(user_id, group_id)
+    data_list = await get_old_knife(str(user_id), str(group_id))
     data_list += await OpenCasesLog.filter(
         user_id=user_id, group_id=group_id, color="KNIFE"
     ).all()
