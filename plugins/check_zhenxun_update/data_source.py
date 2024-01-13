@@ -65,7 +65,7 @@ async def check_update(bot: Bot) -> Tuple[int, str]:
         )
     data = await get_latest_version_data()
     if data:
-        latest_version = data["name"]
+        latest_version = data["tag_name"]
         if _version != latest_version:
             tar_gz_url = "https://mirror.ghproxy.com/https://github.com/sagirisense/zhenxun_bot/archive/refs/tags/" + data[
                 "tag_name"] + ".tar.gz"
