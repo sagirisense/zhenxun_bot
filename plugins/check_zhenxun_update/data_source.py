@@ -67,7 +67,7 @@ async def check_update(bot: Bot) -> Tuple[int, str]:
     if data:
         latest_version = data["name"]
         if _version != latest_version:
-            tar_gz_url = "https://ghproxy.com/https://github.com/sagirisense/zhenxun_bot/archive/refs/tags/" + data[
+            tar_gz_url = "https://mirror.ghproxy.com/https://github.com/sagirisense/zhenxun_bot/archive/refs/tags/" + data[
                 "tag_name"] + ".tar.gz"
             # tar_gz_url = data["tarball_url"]
             logger.info(f"检测格蕾修已更新，当前版本：{_version}，最新版本：{latest_version}")
