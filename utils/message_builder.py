@@ -1,3 +1,4 @@
+import base64
 import io
 from pathlib import Path
 from typing import List, Optional, Union
@@ -34,7 +35,16 @@ def image(
             return ""
     if isinstance(file, Path):
         if file.exists():
-            return MessageSegment.image(file)
+            # return MessageSegment.image(file)
+            try:
+                with open(file.absolute(), 'rb') as file:
+                    # 读取图片文件并进行 Base64 编码
+                    image_data = base64.b64encode(file.read())
+                    image_base64 = image_data.decode('utf-8')
+                    # print(image_base64)
+                    return MessageSegment.image("base64://" + image_base64)
+            except FileNotFoundError:
+                logger.warning(f"图片 {file.absolute()} 缺失...")
         logger.warning(f"图片 {file.absolute()}缺失...")
     if isinstance(file, (bytes, io.BytesIO)):
         return MessageSegment.image(file)
